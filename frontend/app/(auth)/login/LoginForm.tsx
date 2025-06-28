@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,13 +29,9 @@ import {
 } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { loginSchema, type LoginFormValues } from "@/lib/validations/auth";
-import { useAuth } from "@/providers/auth-provider";
-import { getOAuthUrl } from "@/lib/api/auth";
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -52,31 +49,30 @@ export default function LoginForm() {
   const onSubmit = async (data: LoginFormValues) => {
     try {
       setIsLoading(true);
-      await login(data.email, data.password);
+      
+      const result = await signIn('credentials', {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        toast.error("Invalid email or password. Please check your credentials.");
+        return;
+      }
+
       toast.success("Signed in successfully!");
+      window.location.href = "/dashboard";
     } catch (error: any) {
       console.error("Sign in error:", error);
-      
-      const errorMessage = error.message || "An error occurred during sign in";
-      
-      if (errorMessage.includes("verify your email")) {
-        toast.error("Please verify your email before signing in.");
-        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
-      } else if (errorMessage.includes("Invalid email or password")) {
-        toast.error("Invalid email or password. Please check your credentials.");
-      } else if (errorMessage.includes("Too many")) {
-        toast.error("Too many login attempts. Please try again later.");
-      } else {
-        toast.error(errorMessage);
-      }
+      toast.error("An error occurred during sign in. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleOAuthLogin = (provider: 'google' | 'facebook') => {
-    const oauthUrl = getOAuthUrl(provider);
-    window.location.href = oauthUrl;
+    signIn(provider, { callbackUrl: '/dashboard' });
   };
 
   return (

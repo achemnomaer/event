@@ -43,11 +43,13 @@ const userSchema = new mongoose.Schema({
   },
   googleId: {
     type: String,
-    sparse: true
+    sparse: true,
+    unique: true
   },
   facebookId: {
     type: String,
-    sparse: true
+    sparse: true,
+    unique: true
   },
   refreshTokens: [{
     token: String,
@@ -76,10 +78,10 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Indexes
-userSchema.index({ email: 1 });
-userSchema.index({ googleId: 1 }, { sparse: true });
-userSchema.index({ facebookId: 1 }, { sparse: true });
+// Create indexes manually to avoid duplicates
+userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ googleId: 1 }, { sparse: true, unique: true });
+userSchema.index({ facebookId: 1 }, { sparse: true, unique: true });
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {

@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X, User, Settings, LogOut } from "lucide-react";
-import { useAuth } from "@/providers/auth-provider";
+import { useSession, signOut } from "next-auth/react";
 import { toast } from "sonner";
 import {
   NavigationMenu,
@@ -29,7 +29,7 @@ import {
 export default function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const { user, loading, logout } = useAuth();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     setIsClient(true);
@@ -39,35 +39,41 @@ export default function SiteHeader() {
 
   const handleSignOut = async () => {
     try {
-      await logout();
+      await signOut({ redirect: false });
       toast.success("Signed out successfully");
+      window.location.href = "/";
     } catch (error) {
       toast.error("Error signing out");
     }
   };
 
   const getUserInitials = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    if (session?.user?.name) {
+      return session.user.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2);
     }
-    if (user?.email) {
-      return user.email.charAt(0).toUpperCase();
+    if (session?.user?.email) {
+      return session.user.email.charAt(0).toUpperCase();
     }
     return "U";
   };
 
   const getUserName = () => {
-    if (user?.firstName && user?.lastName) {
-      return `${user.firstName} ${user.lastName}`;
+    if (session?.user?.name) {
+      return session.user.name;
     }
-    if (user?.firstName) {
-      return user.firstName;
-    }
-    if (user?.email) {
-      return user.email.split("@")[0];
+    if (session?.user?.email) {
+      return session.user.email.split("@")[0];
     }
     return "User";
   };
+
+  const loading = status === "loading";
+  const user = session?.user;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -168,7 +174,7 @@ export default function SiteHeader() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="" alt={getUserName()} />
+                    <AvatarImage src={user.image || ""} alt={getUserName()} />
                     <AvatarFallback>
                       {getUserInitials()}
                     </AvatarFallback>
@@ -182,7 +188,7 @@ export default function SiteHeader() {
                       {getUserName()}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
-                      {user?.email}
+                      {user.email}
                     </p>
                   </div>
                 </DropdownMenuLabel>
@@ -291,7 +297,7 @@ export default function SiteHeader() {
               <div className="pt-4 border-t mt-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src="" alt={getUserName()} />
+                    <AvatarImage src={user.image || ""} alt={getUserName()} />
                     <AvatarFallback>
                       {getUserInitials()}
                     </AvatarFallback>
@@ -301,7 +307,7 @@ export default function SiteHeader() {
                       {getUserName()}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {user?.email}
+                      {user.email}
                     </p>
                   </div>
                 </div>
@@ -330,8 +336,7 @@ export default function SiteHeader() {
                   </Button>
                 </Link>
                 <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full">Sign up
-                  </Button>
+                  <Button className="w-full">Sign up</Button>
                 </Link>
               </div>
             )}

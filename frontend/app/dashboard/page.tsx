@@ -7,21 +7,15 @@ import { LayoutDashboard, Settings } from "lucide-react";
 import Container from "@/components/Container";
 import DashboardContent from "@/components/dashboard/dashboard-content";
 import SettingsContent from "@/components/dashboard/settings-content";
-import { useAuth } from "@/providers/auth-provider";
+import { useSession } from "next-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
-  const { user, loading, refreshUser } = useAuth();
+  const { data: session, status } = useSession();
   const [activeTab, setActiveTab] = useState("overview");
   const searchParams = useSearchParams();
 
-  // Check if we need to refresh auth state after redirect
-  useEffect(() => {
-    const authRefresh = searchParams.get("auth_refresh");
-    if (authRefresh && !user && !loading) {
-      refreshUser();
-    }
-  }, [searchParams, user, loading, refreshUser]);
+  const loading = status === "loading";
 
   if (loading) {
     return (
@@ -42,11 +36,11 @@ export default function DashboardPage() {
   }
 
   const getUserName = () => {
-    if (user?.user_metadata?.first_name) {
-      return user.user_metadata.first_name;
+    if (session?.user?.name) {
+      return session.user.name.split(" ")[0];
     }
-    if (user?.email) {
-      return user.email.split("@")[0];
+    if (session?.user?.email) {
+      return session.user.email.split("@")[0];
     }
     return "User";
   };

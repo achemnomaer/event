@@ -8,6 +8,7 @@ import SiteHeader from "@/components/layout/site-header";
 import SiteFooter from "@/components/layout/site-footer";
 import { AuthProvider } from "@/providers/auth-provider";
 import { ReduxProvider } from "@/providers/ReduxProvider";
+import { SessionProvider } from "next-auth/react";
 import { Suspense } from "react";
 import { Loader } from "@/components/ui/loader";
 import GoogleAnalytics from "@/components/analytics/GoogleAnalytics";
@@ -29,32 +30,34 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className}>
         <GoogleAnalytics />
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <ReduxProvider>
-            <AuthProvider>
-              <Suspense
-                fallback={
-                  <Loader
-                    variant="fullscreen"
-                    message="Loading, Please wait..."
-                  />
-                }
-              >
-                <div className="relative flex min-h-screen flex-col">
-                  <SiteHeader />
-                  <main className="flex-1">{children}</main>
-                  <SiteFooter />
-                </div>
-                <Toaster position="top-center" />
-              </Suspense>
-            </AuthProvider>
-          </ReduxProvider>
-        </ThemeProvider>
+        <SessionProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="light"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <ReduxProvider>
+              <AuthProvider>
+                <Suspense
+                  fallback={
+                    <Loader
+                      variant="fullscreen"
+                      message="Loading, Please wait..."
+                    />
+                  }
+                >
+                  <div className="relative flex min-h-screen flex-col">
+                    <SiteHeader />
+                    <main className="flex-1">{children}</main>
+                    <SiteFooter />
+                  </div>
+                  <Toaster position="top-center" />
+                </Suspense>
+              </AuthProvider>
+            </ReduxProvider>
+          </ThemeProvider>
+        </SessionProvider>
       </body>
     </html>
   );

@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { Loader2, Eye, EyeOff } from "lucide-react";
+import { signIn } from "next-auth/react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,6 @@ import {
   type RegisterFormValues,
 } from "@/lib/validations/auth";
 import { useAuth } from "@/providers/auth-provider";
-import { getOAuthUrl } from "@/lib/api/auth";
 
 export default function RegisterForm() {
   const { register } = useAuth();
@@ -85,8 +85,7 @@ export default function RegisterForm() {
   };
 
   const handleOAuthSignUp = (provider: 'google' | 'facebook') => {
-    const oauthUrl = getOAuthUrl(provider);
-    window.location.href = oauthUrl;
+    signIn(provider, { callbackUrl: '/dashboard' });
   };
 
   return (

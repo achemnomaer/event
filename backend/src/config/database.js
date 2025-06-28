@@ -5,10 +5,7 @@ export const connectDB = async () => {
   try {
     const uri = config.nodeEnv === 'test' ? config.mongodbTestUri : config.mongodbUri;
     
-    await mongoose.connect(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
+    await mongoose.connect(uri);
 
     if (config.nodeEnv === 'development') {
       mongoose.set('debug', true);

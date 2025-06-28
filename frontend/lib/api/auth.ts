@@ -1,4 +1,7 @@
-import apiClient, { apiCall } from './client';
+import { signIn as nextAuthSignIn, signOut as nextAuthSignOut } from "next-auth/react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+const API_VERSION = process.env.NEXT_PUBLIC_API_VERSION || "v1";
 
 // Types
 export interface User {
@@ -14,21 +17,9 @@ export interface User {
   updatedAt: string;
 }
 
-export interface AuthResponse {
-  success: boolean;
-  user: User;
-  accessToken: string;
-  message?: string;
-}
-
 export interface RegisterData {
   firstName: string;
   lastName: string;
-  email: string;
-  password: string;
-}
-
-export interface LoginData {
   email: string;
   password: string;
 }
@@ -56,122 +47,121 @@ export interface ResetPasswordData {
 export const authApi = {
   // Register
   register: async (data: RegisterData): Promise<{ success: boolean; message: string; user: User }> => {
-    return apiCall({
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/register`, {
       method: 'POST',
-      url: '/auth/register',
-      data,
-    });
-  },
-
-  // Login
-  login: async (data: LoginData): Promise<AuthResponse> => {
-    const response = await apiCall<AuthResponse>({
-      method: 'POST',
-      url: '/auth/login',
-      data,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
 
-    // Store access token
-    if (typeof window !== 'undefined' && response.accessToken) {
-      localStorage.setItem('accessToken', response.accessToken);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Registration failed');
     }
 
-    return response;
+    return result;
+  },
+
+  // Login (using NextAuth)
+  login: async (email: string, password: string) => {
+    const result = await nextAuthSignIn('credentials', {
+      email,
+      password,
+      redirect: false,
+    });
+
+    if (result?.error) {
+      throw new Error('Invalid email or password');
+    }
+
+    return result;
+  },
+
+  // Logout (using NextAuth)
+  logout: async () => {
+    await nextAuthSignOut({ redirect: false });
   },
 
   // Verify email
   verifyEmail: async (data: VerifyEmailData): Promise<{ success: boolean; message: string }> => {
-    return apiCall({
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/verify-email`, {
       method: 'POST',
-      url: '/auth/verify-email',
-      data,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Verification failed');
+    }
+
+    return result;
   },
 
   // Resend verification
   resendVerification: async (data: ResendVerificationData): Promise<{ success: boolean; message: string }> => {
-    return apiCall({
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/resend-verification`, {
       method: 'POST',
-      url: '/auth/resend-verification',
-      data,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to resend verification');
+    }
+
+    return result;
   },
 
   // Forgot password
   forgotPassword: async (data: ForgotPasswordData): Promise<{ success: boolean; message: string }> => {
-    return apiCall({
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/forgot-password`, {
       method: 'POST',
-      url: '/auth/forgot-password',
-      data,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Failed to send reset code');
+    }
+
+    return result;
   },
 
   // Reset password
   resetPassword: async (data: ResetPasswordData): Promise<{ success: boolean; message: string }> => {
-    return apiCall({
+    const response = await fetch(`${API_URL}/api/${API_VERSION}/auth/reset-password`, {
       method: 'POST',
-      url: '/auth/reset-password',
-      data,
-    });
-  },
-
-  // Get profile
-  getProfile: async (): Promise<{ success: boolean; user: User }> => {
-    return apiCall({
-      method: 'GET',
-      url: '/auth/profile',
-    });
-  },
-
-  // Refresh token
-  refreshToken: async (): Promise<{ success: boolean; accessToken: string }> => {
-    const response = await apiCall<{ success: boolean; accessToken: string }>({
-      method: 'POST',
-      url: '/auth/refresh',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(data),
     });
 
-    // Store new access token
-    if (typeof window !== 'undefined' && response.accessToken) {
-      localStorage.setItem('accessToken', response.accessToken);
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.message || 'Password reset failed');
     }
 
-    return response;
-  },
-
-  // Logout
-  logout: async (): Promise<{ success: boolean; message: string }> => {
-    const response = await apiCall<{ success: boolean; message: string }>({
-      method: 'POST',
-      url: '/auth/logout',
-    });
-
-    // Clear access token
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-    }
-
-    return response;
-  },
-
-  // Logout from all devices
-  logoutAll: async (): Promise<{ success: boolean; message: string }> => {
-    const response = await apiCall<{ success: boolean; message: string }>({
-      method: 'POST',
-      url: '/auth/logout-all',
-    });
-
-    // Clear access token
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-    }
-
-    return response;
+    return result;
   },
 };
 
-// OAuth URLs
+// OAuth URLs for direct redirect (if needed)
 export const getOAuthUrl = (provider: 'google' | 'facebook'): string => {
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-  const apiVersion = process.env.NEXT_PUBLIC_API_VERSION || 'v1';
-  return `${baseUrl}/api/${apiVersion}/auth/${provider}`;
+  return `${API_URL}/api/${API_VERSION}/auth/${provider}`;
 };
