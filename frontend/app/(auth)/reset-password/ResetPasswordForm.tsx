@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,10 +18,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { updatePassword } from "@/lib/supabase/auth";
+import { useAuth } from "@/providers/auth-provider";
 
 const formSchema = z
   .object({
+    email: z.string().email("Please enter a valid email address"),
+    otp: z.string().length(6, "OTP must be 6 digits").regex(/^\d+$/, "OTP must contain only numbers"),
     password: z.string().min(8, "Password must be at least 8 characters"),
     confirmPassword: z.string().min(1, "Please confirm your password"),
   })
@@ -35,6 +36,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 export default function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { resetPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -42,6 +45,8 @@ export default function ResetPasswordForm() {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      email: searchParams.get("email") || "",
+      otp: "",
       password: "",
       confirmPassword: "",
     },
@@ -50,14 +55,8 @@ export default function ResetPasswordForm() {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      const { error } = await updatePassword(data.password);
-
-      if (error) {
-        throw error;
-      }
-
+      await resetPassword(data.email, data.otp, data.password);
       toast.success("Password reset successfully!");
-      router.push("/login");
     } catch (error: any) {
       console.error("Password reset error:", error);
       toast.error(
@@ -71,6 +70,46 @@ export default function ResetPasswordForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Email Address</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter your email address"
+                  type="email"
+                  autoComplete="email"
+                  disabled={isLoading}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="otp"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Reset Code</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Enter 6-digit reset code"
+                  maxLength={6}
+                  disabled={isLoading}
+                  {...field}
+                  className="text-center text-lg tracking-widest"
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
         <FormField
           control={form.control}
           name="password"

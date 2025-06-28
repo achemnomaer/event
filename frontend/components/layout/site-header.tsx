@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -17,9 +16,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { Menu, X, User, Settings, LogOut } from "lucide-react";
 import { useAuth } from "@/providers/auth-provider";
-import { signOut } from "@/lib/supabase/auth";
 import { toast } from "sonner";
-import { useSearchParams } from "next/navigation";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -32,26 +29,44 @@ import {
 export default function SiteHeader() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const { user, loading, refreshUser } = useAuth();
-  const searchParams = useSearchParams();
+  const { user, loading, logout } = useAuth();
 
   useEffect(() => {
     setIsClient(true);
-    const authRefresh = searchParams.get("auth_refresh");
-    if (authRefresh && !user && !loading) {
-      refreshUser();
-    }
-  }, [searchParams, user, loading, refreshUser]);
+  }, []);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
 
   const handleSignOut = async () => {
     try {
-      await signOut();
+      await logout();
       toast.success("Signed out successfully");
     } catch (error) {
       toast.error("Error signing out");
     }
+  };
+
+  const getUserInitials = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase();
+    }
+    if (user?.email) {
+      return user.email.charAt(0).toUpperCase();
+    }
+    return "U";
+  };
+
+  const getUserName = () => {
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
+    }
+    if (user?.firstName) {
+      return user.firstName;
+    }
+    if (user?.email) {
+      return user.email.split("@")[0];
+    }
+    return "User";
   };
 
   return (
@@ -153,16 +168,9 @@ export default function SiteHeader() {
                   className="relative h-8 w-8 rounded-full"
                 >
                   <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={user?.user_metadata?.avatar_url || ""}
-                      alt={user?.user_metadata?.full_name || ""}
-                    />
+                    <AvatarImage src="" alt={getUserName()} />
                     <AvatarFallback>
-                      {user?.user_metadata?.first_name
-                        ?.charAt(0)
-                        ?.toUpperCase() ||
-                        user?.email?.charAt(0)?.toUpperCase() ||
-                        "U"}
+                      {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -171,9 +179,7 @@ export default function SiteHeader() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user?.user_metadata?.full_name ||
-                        `${user?.user_metadata?.first_name || ""} ${user?.user_metadata?.last_name || ""}`.trim() ||
-                        "User"}
+                      {getUserName()}
                     </p>
                     <p className="text-xs leading-none text-muted-foreground">
                       {user?.email}
@@ -285,23 +291,14 @@ export default function SiteHeader() {
               <div className="pt-4 border-t mt-4">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage
-                      src={user?.user_metadata?.avatar_url || ""}
-                      alt={user?.user_metadata?.full_name || ""}
-                    />
+                    <AvatarImage src="" alt={getUserName()} />
                     <AvatarFallback>
-                      {user?.user_metadata?.first_name
-                        ?.charAt(0)
-                        ?.toUpperCase() ||
-                        user?.email?.charAt(0)?.toUpperCase() ||
-                        "U"}
+                      {getUserInitials()}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="text-sm font-medium">
-                      {user?.user_metadata?.full_name ||
-                        `${user?.user_metadata?.first_name || ""} ${user?.user_metadata?.last_name || ""}`.trim() ||
-                        "User"}
+                      {getUserName()}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {user?.email}
@@ -333,7 +330,8 @@ export default function SiteHeader() {
                   </Button>
                 </Link>
                 <Link href="/register" onClick={() => setIsMenuOpen(false)}>
-                  <Button className="w-full">Sign up</Button>
+                  <Button className="w-full">Sign up
+                  </Button>
                 </Link>
               </div>
             )}

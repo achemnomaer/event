@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
@@ -19,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { resetPassword } from "@/lib/supabase/auth";
+import { useAuth } from "@/providers/auth-provider";
 
 const formSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -28,6 +27,7 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>;
 
 export default function ForgotPasswordForm() {
+  const { forgotPassword } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
 
@@ -41,18 +41,13 @@ export default function ForgotPasswordForm() {
   const onSubmit = async (data: FormValues) => {
     setIsLoading(true);
     try {
-      const { error } = await resetPassword(data.email);
-
-      if (error) {
-        throw error;
-      }
-
+      await forgotPassword(data.email);
       setIsSubmitted(true);
-      toast.success("Password reset link sent to your email");
+      toast.success("Password reset code sent to your email");
     } catch (error: any) {
       console.error("Password reset error:", error);
       toast.error(
-        error?.message || "Failed to send reset link. Please try again."
+        error?.message || "Failed to send reset code. Please try again."
       );
     } finally {
       setIsLoading(false);
@@ -68,11 +63,11 @@ export default function ForgotPasswordForm() {
         <div className="space-y-2">
           <h3 className="text-lg font-semibold">Check your email</h3>
           <p className="text-muted-foreground">
-            We&apos;ve sent a password reset link to{" "}
+            We've sent a password reset code to{" "}
             <strong>{form.getValues().email}</strong>
           </p>
           <p className="text-sm text-muted-foreground">
-            If you don&apos;t see it, please check your spam folder.
+            If you don't see it, please check your spam folder.
           </p>
         </div>
         <div className="pt-4">
@@ -112,7 +107,7 @@ export default function ForgotPasswordForm() {
           />
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Send Reset Link
+            Send Reset Code
           </Button>
         </form>
       </Form>

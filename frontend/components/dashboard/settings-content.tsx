@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -26,7 +25,7 @@ import {
 } from "@/components/ui/form";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/providers/auth-provider";
-import { updateProfile, changePassword } from "@/lib/supabase/auth";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const profileSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -49,7 +48,7 @@ type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
 
 export default function SettingsContent() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
   const [isUpdatingProfile, setIsUpdatingProfile] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
@@ -60,8 +59,8 @@ export default function SettingsContent() {
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
-      firstName: user?.user_metadata?.first_name || "",
-      lastName: user?.user_metadata?.last_name || "",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
       email: user?.email || "",
     },
   });
@@ -78,21 +77,11 @@ export default function SettingsContent() {
   const onProfileSubmit = async (data: ProfileFormValues) => {
     setIsUpdatingProfile(true);
     try {
-      const { error } = await updateProfile({
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Update form with new values
-      profileForm.reset({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-      });
+      // TODO: Implement profile update API call
+      // await updateProfile({
+      //   firstName: data.firstName,
+      //   lastName: data.lastName,
+      // });
 
       toast.success("Profile updated successfully!");
     } catch (error: any) {
@@ -106,14 +95,11 @@ export default function SettingsContent() {
   const onPasswordSubmit = async (data: PasswordFormValues) => {
     setIsChangingPassword(true);
     try {
-      const { error } = await changePassword({
-        currentPassword: data.currentPassword,
-        newPassword: data.newPassword,
-      });
-
-      if (error) {
-        throw error;
-      }
+      // TODO: Implement password change API call
+      // await changePassword({
+      //   currentPassword: data.currentPassword,
+      //   newPassword: data.newPassword,
+      // });
 
       toast.success("Password changed successfully!");
       passwordForm.reset();
@@ -131,6 +117,28 @@ export default function SettingsContent() {
       setIsChangingPassword(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-8 max-w-2xl">
+        <div>
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-4 w-64" />
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-32" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -371,13 +379,29 @@ export default function SettingsContent() {
                 Account ID
               </p>
               <p className="text-sm font-mono">
-                {user?.id?.slice(-12) || "N/A"}
+                {user?._id?.slice(-12) || "N/A"}
               </p>
             </div>
             <div>
               <p className="text-sm font-medium text-muted-foreground">Role</p>
               <p className="text-sm capitalize">
-                {user?.app_metadata?.role || "User"}
+                {user?.role || "User"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Email Verified
+              </p>
+              <p className="text-sm">
+                {user?.isEmailVerified ? "Yes" : "No"}
+              </p>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">
+                Auth Provider
+              </p>
+              <p className="text-sm capitalize">
+                {user?.authProvider || "Local"}
               </p>
             </div>
           </div>

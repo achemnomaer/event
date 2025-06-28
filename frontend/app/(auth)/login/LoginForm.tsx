@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
@@ -29,17 +28,16 @@ import {
 } from "@/components/ui/form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { loginSchema, type LoginFormValues } from "@/lib/validations/auth";
-import { signIn } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/providers/auth-provider";
+import { getOAuthUrl } from "@/lib/api/auth";
 
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { login } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [isCredentialsLoading, setIsCredentialsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
   const message = searchParams.get("message");
   const error = searchParams.get("error");
 
@@ -53,63 +51,32 @@ export default function LoginForm() {
 
   const onSubmit = async (data: LoginFormValues) => {
     try {
-      setIsCredentialsLoading(true);
-
-      const { data: authData, error } = await signIn(data.email, data.password);
-
-      if (error) {
-        console.error("Sign in error:", error);
-
-        if (error.message.includes("Invalid login credentials")) {
-          toast.error(
-            "Invalid email or password. Please check your credentials."
-          );
-        } else if (error.message.includes("Email not confirmed")) {
-          toast.error(
-            "Please verify your email before signing in. Check your inbox for the verification link."
-          );
-        } else if (error.message.includes("Too many")) {
-          toast.error("Too many login attempts. Please try again later.");
-        } else {
-          toast.error(error.message);
-        }
-        return;
+      setIsLoading(true);
+      await login(data.email, data.password);
+      toast.success("Signed in successfully!");
+    } catch (error: any) {
+      console.error("Sign in error:", error);
+      
+      const errorMessage = error.message || "An error occurred during sign in";
+      
+      if (errorMessage.includes("verify your email")) {
+        toast.error("Please verify your email before signing in.");
+        router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+      } else if (errorMessage.includes("Invalid email or password")) {
+        toast.error("Invalid email or password. Please check your credentials.");
+      } else if (errorMessage.includes("Too many")) {
+        toast.error("Too many login attempts. Please try again later.");
+      } else {
+        toast.error(errorMessage);
       }
-
-      if (authData.user) {
-        toast.success("Signed in successfully!");
-        router.push(callbackUrl);
-        router.refresh();
-      }
-    } catch (error) {
-      console.error("Unexpected sign in error:", error);
-      toast.error("An unexpected error occurred. Please try again.");
     } finally {
-      setIsCredentialsLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      setIsGoogleLoading(true);
-      const supabase = createClient();
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent(callbackUrl)}`,
-        },
-      });
-
-      if (error) {
-        toast.error("Google sign in failed. Please try again.");
-      }
-    } catch (error) {
-      console.error("Google sign in error:", error);
-      toast.error("Google sign in failed. Please try again.");
-    } finally {
-      setIsGoogleLoading(false);
-    }
+  const handleOAuthLogin = (provider: 'google' | 'facebook') => {
+    const oauthUrl = getOAuthUrl(provider);
+    window.location.href = oauthUrl;
   };
 
   return (
@@ -200,9 +167,9 @@ export default function LoginForm() {
             <Button
               type="submit"
               className="w-full"
-              disabled={isCredentialsLoading}
+              disabled={isLoading}
             >
-              {isCredentialsLoading ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Signing in...
@@ -214,7 +181,7 @@ export default function LoginForm() {
           </form>
         </Form>
 
-        {/* Login with google 
+        {/* OAuth Login Options */}
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -227,15 +194,12 @@ export default function LoginForm() {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full mt-4"
-            onClick={handleGoogleSignIn}
-            disabled={isGoogleLoading}
-          >
-            {isGoogleLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthLogin('google')}
+              disabled={isLoading}
+            >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -254,11 +218,20 @@ export default function LoginForm() {
                   fill="#EA4335"
                 />
               </svg>
-            )}
-            Sign in with Google
-          </Button>
+              Google
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthLogin('facebook')}
+              disabled={isLoading}
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="#1877F2">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              Facebook
+            </Button>
+          </div>
         </div>
-        */}
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">

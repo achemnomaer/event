@@ -1,10 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -33,13 +30,12 @@ import {
   registerSchema,
   type RegisterFormValues,
 } from "@/lib/validations/auth";
-import { signUp } from "@/lib/supabase/auth";
-import { createClient } from "@/lib/supabase/client";
+import { useAuth } from "@/providers/auth-provider";
+import { getOAuthUrl } from "@/lib/api/auth";
 
 export default function RegisterForm() {
-  const router = useRouter();
+  const { register } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -59,59 +55,38 @@ export default function RegisterForm() {
     setIsLoading(true);
 
     try {
-      const { error } = await signUp(
-        data.email,
-        data.password,
-        data.firstName,
-        data.lastName
-      );
-
-      if (error) {
-        throw error;
-      }
+      await register({
+        firstName: data.firstName,
+        lastName: data.lastName,
+        email: data.email,
+        password: data.password,
+      });
 
       toast.success(
-        "Account created! Please check your email to confirm your account."
+        "Account created! Please check your email to verify your account."
       );
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch (error: any) {
       console.error("Registration error:", error);
 
-      if (error.message?.includes("User already registered")) {
+      const errorMessage = error.message || "Something went wrong. Please try again.";
+      
+      if (errorMessage.includes("already exists")) {
         toast.error(
           "An account with this email already exists. Please sign in instead."
         );
-      } else if (error.message?.includes("rate limit")) {
+      } else if (errorMessage.includes("rate limit")) {
         toast.error("Too many registration attempts. Please try again later.");
       } else {
-        toast.error(error.message || "Something went wrong. Please try again.");
+        toast.error(errorMessage);
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignUp = async () => {
-    try {
-      setIsGoogleLoading(true);
-      const supabase = createClient();
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/api/auth/callback?next=${encodeURIComponent("/dashboard")}`,
-        },
-      });
-
-      if (error) {
-        toast.error("Google sign up failed. Please try again.");
-      }
-    } catch (error) {
-      console.error("Google sign up error:", error);
-      toast.error("Google sign up failed. Please try again.");
-    } finally {
-      setIsGoogleLoading(false);
-    }
+  const handleOAuthSignUp = (provider: 'google' | 'facebook') => {
+    const oauthUrl = getOAuthUrl(provider);
+    window.location.href = oauthUrl;
   };
 
   return (
@@ -288,7 +263,8 @@ export default function RegisterForm() {
             </Button>
           </form>
         </Form>
-        {/* Login with google 
+
+        {/* OAuth Sign Up Options */}
         <div className="mt-6">
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
@@ -301,15 +277,12 @@ export default function RegisterForm() {
             </div>
           </div>
 
-          <Button
-            variant="outline"
-            className="w-full mt-4"
-            onClick={handleGoogleSignUp}
-            disabled={isGoogleLoading}
-          >
-            {isGoogleLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
+          <div className="grid grid-cols-2 gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthSignUp('google')}
+              disabled={isLoading}
+            >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
                 <path
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -328,11 +301,20 @@ export default function RegisterForm() {
                   fill="#EA4335"
                 />
               </svg>
-            )}
-            Sign up with Google
-          </Button>
+              Google
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleOAuthSignUp('facebook')}
+              disabled={isLoading}
+            >
+              <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="#1877F2">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              Facebook
+            </Button>
+          </div>
         </div>
-        */}
       </CardContent>
       <CardFooter className="flex justify-center">
         <p className="text-sm text-muted-foreground">

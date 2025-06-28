@@ -1,16 +1,12 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/middleware";
 
 export async function middleware(request: NextRequest) {
-  const { supabase, response } = createClient(request);
+  // Get the access token from localStorage (we can't access it in middleware)
+  // So we'll check for the presence of the refresh token cookie instead
+  const refreshToken = request.cookies.get('refreshToken');
 
-  // Refresh session if expired - required for Server Components
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  // Protected routes that require authentication (removed event-registration)
+  // Protected routes that require authentication
   const protectedRoutes = ["/dashboard"];
   const isProtectedRoute = protectedRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
@@ -23,18 +19,18 @@ export async function middleware(request: NextRequest) {
   );
 
   // If accessing a protected route without being logged in
-  if (isProtectedRoute && !session) {
+  if (isProtectedRoute && !refreshToken) {
     const redirectUrl = new URL("/login", request.url);
     redirectUrl.searchParams.set("next", request.nextUrl.pathname);
     return NextResponse.redirect(redirectUrl);
   }
 
-  // If accessing auth routes while logged in
-  if (isAuthRoute && session) {
+  // If accessing auth routes while logged in (has refresh token)
+  if (isAuthRoute && refreshToken) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return response;
+  return NextResponse.next();
 }
 
 export const config = {
